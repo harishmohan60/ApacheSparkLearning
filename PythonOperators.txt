@@ -1,0 +1,90 @@
+import functools
+
+l = range(1,100)
+f = filter(lambda i: i%2 == 0, l)
+m = map(lambda i: i* i, f)
+r = functools.reduce(lambda total, element: total + element, m)
+r
+
+**help(filter)
+**help(map)
+---------------------------------------------------------------
+###Change Directory-- /data/retail_db/order_items
+
+orderItemsFile = open("/data/retail_db/order_items/part-00000", "r")
+type(orderItemsFile)
+orderItemsRead = orderItemsFile.read()
+type(orderItemsRead)
+
+###help(str) -- Split and Split-lines ('/n')
+
+orderItems = orderItemsRead.splitlines()
+type(orderItems)
+
+orderItems[0:10]
+orderItems[-10:-1]
+
+# Filter
+orderItemsFilter = filter(lambda rec: int(rec.split(",")[1]) == 68880, orderItems)
+list(orderItemsFilter)
+
+# Map-- Does not work on python 3, only works on python2
+orderItemsMap = map(lambda rec: float(rec.split(",")[4]), orderItemsFilter)
+list(orderItemsMap)
+
+# Reduce-- Does not work on python 3, only works on python2 (functools.reduce for py3)
+orderItemsRevenue = reduce(lambda total, element: total + element, orderItemsMap)
+
+--------------------------------------------------------------------------------------
+## Get revenue for giving order id -- as application
+
+mkdir retail
+cd retail
+mkdir -p src/main/python
+pwd
+cd src/main/python
+vi GetRevenueForOrderID
+
+----------------------------------------------------------------------------------------
+OrderItemFile = open("/data/retail_db/order_items/part-00000")
+OrderItemRead = OrderItemFile.read()
+OrderItem = OrderItemRead.splitlines()
+OrderItemFilter = filter(lambda rec: int(rec.split(",")[1] == 68880, orderItem)
+OrderItemMap = map(lambda rec: float(rec.split(",")[4]), OrderItemFilter)
+OrderItemRevenue = reduce(lambda total, element: total + element, OrderItemMap)
+----------------------------------------------------------------------------------------
+
+import sys
+
+
+def getRevenueForOrderId(path, OrderId):
+    OrderItemRead = OrderItemFile.read()
+    OrderItem = OrderItemRead.splitlines()
+    OrderItemFilter = filter(lambda rec: int(rec.split(",")[1]) == OrderId, OrderItem)
+    OrderItemMap = map(lambda rec: float(rec.split(",")[4]), OrderItemFilter)
+    OrderItemRevenue = reduce(lambda total, element: total + element, OrderItemMap)
+    return OrderItemRevenue
+
+
+path = sys.argv[1]
+OrderId = int(sys.argv[2])
+
+print(getRevenueForOrderId(path, OrderId))
+-------------------------------------------------------------------------------------------
+# Data set location
+ls -ltr /data/
+du -sh /data/crime 
+hadoop fs -ls //public
+hadoop fs -du -s -h /public
+
+--------------------------------------------------------------------------------------------
+# move files from host machine to remote machine
+cd cygdrive
+ls -ltr
+cd C/cygwin64/home/haris/SparkLearning
+scp /cygdrive/C/cygwin64/home/haris/SparkLearning/PythonOperators.txt harishmohan@gw02.itversity.com:/home/harishmohan
+
+# And connect to remote
+ssh harishmohan@gw02.itversity.com
+
+------------------------------------------------------------------------------------------------

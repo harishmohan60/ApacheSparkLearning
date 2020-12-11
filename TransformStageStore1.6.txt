@@ -1,0 +1,353 @@
+# Apache Spark 1.6 - Transform, Stage and Store
+## Introduction
+### Agenda
+- Objective
+- Problem Statement
+- Introduction to Spark
+- Initializing the job
+- Create RDD using data from HDFS
+- Read data from different file formats
+- Standard Transformations
+- Saving RDD back to HDFS
+- Save data in different formats
+- Solution
+
+#### Objective
+Convert a set of data values in a given format stored in HDFS into new data values or a new data format and write then into HDFS 
+- Load RDD data from HDFS for use in Spark Application
+- Write the result from an RDD back into HDFS using spark
+- Read and write files in a variety of file formats
+- Perform standard extract, transform, load (ETL) processes on data
+
+#### Problem Statement
+- Use retail_db data set
+- Problem Statement
+    - Get daily revenue by product considering completed and closed orders
+    - Data need to be sorted by ascending order by date and then descending order by revenue computed for each product for each day
+- Data for orders and order_items is available in HDFS
+/public/retail_db/orders and /public/retail_db/order_items
+- Data for products is available locally under /data/retail_db/products
+- Final output need to be stored under
+    - HDFS location - avro format
+    /user/YOUR_USER_ID/daily_revenue_avro_python
+    - HDFS location -text format 
+    /user/YOUR_USER_ID/daily_revenue_txt_python
+    - Local location /home/YOUR_USER_ID/daily_revenue_python
+    - Solution need to be stored under
+    /home/YOUR_USER_ID/daily_revenue_python.txt
+
+### Introduction to spark
+- Spark is Distributed computing framework
+- Bunch of APIs to process data
+- Higher level modules such as Data Frames/SQL, Streaming, MLLib and more
+- Well integrated with python, scala, java, etc
+- spark uses HDFS API to deal with file system
+- It can run against any distributed or cloud file system- HDFS, S3, AzureBlob, etc
+- Only Core spark and spark SQL (including Data Frames) is part of the curriculum for CCA spark and Hadoop developer. 
+  CCA also requires some knowledge of Spark Streaming.
+- Pre-requisites Programming language (Python or Scala)
+
+------------------------------------------------------------------------------------------
+Initializing the job
+- Initializing using pyspark
+    - Running in yarn mode (client or cluster mode)
+    - Control arguments
+    - Deciding on number of executors
+    - Setting up additional properties
+
+- Programmatic initialization of job
+    - Create configuration object 
+    - Create Spark Context object
+
+--------------------------------------
+pyspark --master yarn --conf spark.ui.port=12568
+sc
+--------------------------------------------------------------------------------------------
+# Create RDD using Data from HDFS 
+- RDD is extension to python list
+- RDD - Resilient Distributed Dataset
+    - In-memory
+    - Distributed
+    - Resilient
+
+- Reading files form HDFS
+- Quick overview of Transformations and Actions
+- DAG and lazy evaluation
+- Previewing the data using Actions
+---------------------------------------
+hadoop fs -ls /public/retail_db
+help(sc)
+
+orderItems = sc.textFile("/public/retail_db/order_items")
+type(orderItems)
+help(orderItems)
+
+orderItems.first() # first row
+for i in orderItems.take(10): print(i) # first 10 rows
+------------------------------------------
+
+#Lazy evaluation and Directed Acyclic Graph (DAG)
+orderItems = sc.textFile("/public/retail_db/order_items")
+orderItemsMap = orderItems.map(lambda oi: (int(oi.split(",")[1]), float(oi.split(",")[4])))
+revenuePerOrder = orderItemsMap.reduceByKey(lambda curr, next: curr + next)
+
+orderItems.toDebugString()
+orderItemsMap.toDebugString()
+revenuePerOrder.toDebugSting()
+
+for i  in revenuePerOrder.take(10): print(i)
+
+revenuePerOrder.count()
+
+orderItemsList = orderItems.collect()
+type(orderItemList)
+orderItem.count()
+
+-----------------------------------------------------------------------------------------------------
+# Create RDD using data from collection
+- Create collection
+- Use sc.parallelize to convert into RDD
+- Real world use case
+    - Read data from local file system
+    - Convert into collection
+    - Create RDD using sc.parallelize
+----------------------------------------
+
+l = range(1, 10000)
+type(l)
+lRRD = sc.parallelize(l)
+type(lRDD)
+
+hadoop fs -ls /public/retail_db/order_items # HDFS file directory
+ls -ltr /data/retail_db # local file directory
+
+productsRaw = open("/data/retail_db/products/part=00000).read().splitlines()
+type(productsRaw)
+productsRDD = sc.parallelize(productsRaw)
+
+productRDD.first()
+productRDD.take()
+productRDD.count()
+-------------------------------------------------------------------------------------------------
+# Read Data from Different file formats
+- Data Frame (Distributed collection with structure)
+- APIs provided by sqlContext
+- Support file format
+    - orc
+    - json
+    - parquet
+    - avro
+- Previewing the data
+    - show
+------------------------------------------------
+sc #Spark context
+sqlContext #Hive Context
+
+help(sqlContext) #load and #read
+help(sqlContext.load)
+help(sqlContext.read.json)
+help(sqlContext.read.orc)
+help(sqlContext.read.parquet)
+help(sqlContext.read.text)
+-----------------------------
+# load and read json documents (both serve the same purpose)
+hadoop fs -ls /public/ # second terminal
+hadoop fs -ls /public/retail_db_json # second terminal
+
+sqlContext.load("/public/retail_db_json/order_items", "json").show()
+sqlContext.read.json("/public/retail_db_json/order_items").show()
+---------------------------------------------------------------------------------------------------------------------
+# Standard Transformations
+- String Manipulation (Python)
+
+orders = sc.textFile("/public/retail_db/orders")
+orders.first()
+type(orders.first())
+
+s = orders.first()
+print(s)
+type(s)
+
+s[0]
+s[:10]
+len(s)
+s[2:12]
+
+s.split(",")
+type(s.split(","))
+s.split(",")[0]
+s.split(",")[1]
+s.split(",")[2]
+s.split(",")[3]
+
+# Better to define the data type now
+int(s.split(",")[0])
+float() etc.. 
+
+int(s.split(",")[1].split(" ")[0].replace("-", ""))
+-------------------------------------------------------------------------------------------------------------
+Row level transformation- Map
+- String Manipulation (Python)
+- Row level transformation
+
+orders = sc.textFile("/public/retail_db/orders)
+orders.fist()
+help(orders.map)
+
+orders.map(lambda o: str(o.split(",")[3])).first()
+orders.map(lambda o: int(o.split(",")[1].split(" ")[0].replace("-",""))).first()
+
+#Count by status
+orders.map(lambda o: (o.split(",")[3], 1)).first()
+
+orderItems = sc.textFile("/public/retail_db/order_items")
+orderItems.first()
+
+for i in orderItem.take(10): print(i)
+
+orderItemsMap = orderItems.map(lambda o: (int(o.split(",")[1]), float(o.split(",")[4]))).first()
+
+for i in orderItemMap.take(10): print(i)
+
+-------------------------------------------------------------------------------------------------------------
+Row level transformation- flatMap
+- String Manipulation (Python)
+- Row level transformation
+
+#FlatMap
+LinesList = ["How are you", "let us perform", "word count using flatMap", "to understand flatMap in detail"]
+lines = sc.parallelize(LinesList)
+type(lines)
+
+for i in lines.take(10): print(i)
+word = lines.flatMap(lambda l: l.split())
+for i in words.take(20): print(i)
+--------------------------------------------------------------------------------------------------------------
+# Filtering data using filter
+- String Manipulation (python)
+- Row level transformations
+- Filtering (horizontal and vertical)
+-------------------------------------
+orders = textFile("/public/retail_db/orders")
+orders.first()
+
+for i in order.take(100): print(i)
+
+ordersComplete = orders.filter(lambda o: o.split(",")[3] == "COMPLETE")
+
+for i in ordersComplete.take(100): print(i)
+ordersCompleted.count()
+orders.count()
+
+ordersComplete = orders.filter(lambda o: o.split(",")[3] == "COMPLETE" or o.split(",")[3] == "CLOSED")
+ordersComplete = orders.filter(lambda o: (o.split(",")[3] == "COMPLETE" or o.split(",")[3] == "CLOSED") and o.split(",")[1][:7] == "2014-01")
+ordersComplete.count()
+
+orderComplete = orders.filter(lambda o: (o.split(",")[3] in ["COMPLETE", "CLOSED"]) and o.split(",")[1][:7] == "2014-01")
+orderComplete.count()
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+Joining Datasets- Introduction
+- String Manipulation (Python)
+- Row level transformations
+- Filtering (horizontals and vertical)
+- Join
+--------------------------------------------
+# Inner Join
+orders = sc.textFile("/public/retail_db/orders")
+orderItems = sc.textFile("/public/retail_db/order_items")
+
+orderMap = orders. \
+map(lambda o: (int(o.split(",")[0]), o.split(",")[1]))
+
+orderItemsMap = orderItems. \
+map(lambda oi: (int(oi.split(",")[1]), float(oi.split(",")[4])))
+
+ordersJoin = orderMap.join(orderItemsMap)
+
+for i in ordersJoin.take(10): print(i)
+
+---------------------------------------------------
+# Outer Join
+orders = sc.textFile("/public/retail_db/orders)
+orderItems = sc.textFile("/public/retail_db/order_items")
+
+orderMap = orders. \ 
+map(lambda o: (int(o.split(",")[0]), o.split(",")[1]))
+
+orderItemMap = orderItems. \ 
+map(lambda oi: (int(oi.split(",")[1]), float(oi.split(",")[4])))
+
+ordersJoin = orderMap.Join(orderItemsMap)
+
+##############################################
+#Rule of thumb for OuterJoins
+- ParentTable.leftOuterJoin(ChildTable)
+- ChildTable.RightOuterJoin(ParentTable)
+##############################################
+---------------------------------------------------------------------------------------
+# Left Outer Join
+orderMap = orders. \
+map(lambda o: (int(o.split(",")[0]), o.split(",")[3]))
+
+orderItemMap = orderItems. \
+map(lambda oi: (int(oi.split(",")[1]), float(oi.split(",")[4])))
+
+orderLeftOuterJoin = orderMap.leftOuterJoin(orderItemsMap)
+
+orderLeftOuterJoinFilter = orderLeftOuterJoin. \
+filter(lambda o: o[1][1] == None)
+
+-------------------------------------------------------------------------------------
+# Right Outer Join
+orderMap = orders. \
+map(lambda o: (int(o.split(",")[0]), o.split(",")[3]))
+
+orderItemMap = orderItems. \
+map(lambda oi: int(oi.split(",")[1], float(oi.split(",")[4])))
+
+orderRightOuterJoin = orderItemsMap.rightOuterJoin(orderMap)
+orderRightOuterJoinFilter = orderRightOuterJoin. \
+filter(lambda o: o[1][1] == None)
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Introduction Aggregations
+- String Manipulation (Python)
+- Row Level transformation
+- Filtering (horizontal and vertical)
+- Join
+- Aggregations 
+----------------------
+# Aggregations - total
+orderItems = sc.textFile("/public/retail_db/order_items")
+orderItems.count()
+for i in orderItem.take(10): print(i)
+
+# Aggregations - total - Get revenue for given order_id
+
+orderItemsFiltered = orderItems. \
+filter(lambda oi: int(oi.split(",")[1]) == 2)
+
+orderItemsSubtotal = orderItemsFiltered. \
+map(lambda oi: float(oi.split(",")[4]))
+
+from operator import add
+
+orderItemsSubtotal.reduce(add)
+orderItemsSubtotal.reduce(lambda x, y: x + y)
+-----------------------------------
+
+# Get order item details which have minimum order_items_subtotal for given order_id
+orderItems = sc.textFile("/public/retail_db/order_items")
+
+for i in orderItems.take(10): print(i)
+
+orderItemsFiltered = orderItems. \
+filter(lambda oi: int(oi.split(",")[1]) == 2)
+
+for i in orderItemsFiltered.take(10): print(i)
+
+orderItemsFiltered. \
+reduce(lambda x, y: )
+
+float(x.split(",")[4])
+x if(True) else y
+

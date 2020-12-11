@@ -1,0 +1,86 @@
+Apache Hadoop YARN
+Apache Hadoop YARN is the resource management and job scheduling technology in the open source Hadoop distributed processing framework. One of Apache Hadoop's 
+core  components, YARN is responsible for allocating system resources to the various applications running in a Hadoop cluster and scheduling tasks to be executed 
+on different cluster nodes. 
+
+Before getting its offical name, YARN was informally called MAPREDUCE 2 or NextGen MapReduce. But it introduced a new approach that decoupled cluster
+resource management and scheduling from MapReduce's data processing component, enabling Hadoop to support various types of processing and a broader array of application. 
+For example, Hadoop cluster can now run interactive querying, steaming  data and real-time analytics applications on Apache Spark and other processing engines simultaneously with
+MapReduce batch job. 
+
+Hadoop YARN features and functions
+In a cluster architecture, Apache Hadoop YARN sits between HDFS and the processing engines being used to run applications. It combines a central resource manager
+with container, application coordinators amd node-level agents that monitor processing operations as needed, a capability designed to improve resource utilization and application
+performance compared with MapReduce's more static allocation approach. 
+
+YARN Vs MapReduce
+How the two technologies differ on cluster resource management
+
+YARN
+- Supports a variety of processing engines and applications
+- Separates its duties across multiple components
+- Can dynamically allocate pools of resources to application
+
+MAPREDUCE
+- Support its own batch processing applications only
+- Consolidated most of its work in a single component
+- Provided static allocations of resource for designated tasks
+
+Key components of Hadoop YARN
+In MapReduce, a job tracker Master process oversaw resource management, scheduling and monitoring of processing job. It created subordinate process called TaskTrackers to
+run individual map and reduce tasks and report back on their progress, but most of the resource allocation and coordination work was centralized in JobTracker. That created
+performance bottlenecks and scalability problems are clusters sizes and the number of applications --and associated TaskTrackers --increased. 
+
+Apache Hadoop YARN decentralized execution and monitoring of processing jobs by separating the various responsibilities into these components: 
+- Global Resource Manager that accepts job submission from users, schedules the jobs and allocated resource to them
+- A NodeManger slave that's installed to each node and functions as a monitoring and reporting agent of the ResourceManager
+- An ApplicationMaster that's created for each application to negotiate for resources and work with the NodeManager to execute and monitor tasks
+- Resource containers that are controlled by NodeManager and assigned the system resource allocated to individual applications
+
+
+YARN containers typically are set up in nodes and scheduled to execute jobs only if there are system resources available for then, but hadoop 3.0 added support for creating 
+"opportunistic containers" that can be queued up at NodeManagers to wait for resources to become available. The opportunistic container concepts aims to optimise the use of cluster
+resource and, ultimately, increase overall processing throughput in hadoop systems. 
+
+Also, while the standard approach has been to run YARN containers directly on cluster nodes, Hadoops 3.1 will include the ability to put then inside Docker containers. That would
+isolate applications from each other and the NodeManager's execution environment; in additon, multiple versions of applications could be run simultaneously in different Docker 
+containers. 
+
+YARN advantages 
+Using Apache Hadoop YARN to separate HDFS from MapReduce made the Hadoop environment more suitable for real-time processing uses and other applications that can't wait for batch 
+jobs to finish. Now, MapReduce is just one of many processing engines that can run Hadoop applications. It doesn't even have a lock on batch processing in Hadoop anymore: In a lot 
+of cases, users are replacing it with spark to get faster performance on batch application, such as extract, transform and load jobs.
+
+----------------------------------------------------------------------------------------------------------------------------------------
+- In certification Spark typically runs in YARN mode
+- We should be able to check the memory configuration to understand the cluster capacity
+    - /etc/hadoop/conf/yarn-site.xml
+    - /etc/spark/conf/spark-env.sh
+- Spark default settings
+    - Number of executors - 2
+    - Memory - 1GB 
+- Quite often we under utilize the resource. Understanding memory settings through and then mapping them with data size we are trying to process we can accelerate the
+  execution of our jobs. 
+----------------------------------------------------------------------------------------------------------------------------------------
+cd /etc/hadoop/conf/
+view yarn-site.xml --search yarn.resourcemanager.webapp.address -To access UI
+
+cd /etc/hadoop/conf/
+view spark-env.sh
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

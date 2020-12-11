@@ -1,0 +1,142 @@
+Introduction:
+HDFS (Hadoop Distributed File system) is a vital component of the Apache Hadoop project. Hadoop is an ecosystem of software that work 
+together to help you manage big data. The two main element of hadoop are: 
+- MapReduce: Responsible for executing task 
+- HDFS: Responsible for maintaining data
+
+What is HDFS?
+Hadoop Distributed File System is a fault-tolerant data storage file system that runs on commodity hardware. It was designed to overcome
+challenges traditionally database could not. Therefore, its full potential is only utilized when handling big data. 
+
+The main issues the hadoop file system had to solve were speed, cost, and reliability
+
+What are the benefits of HDFS? 
+The benefits of HDFS are, in fact, solution that the file system provides for the previous mentioned challenges:
+1. It is fast. It can deliver more that 2GB of data per second thanks to its cluster architecture
+2. It is free. HDFS is an open source software that comes with no licensing or support cost
+3. It is reliable. The file system stores multiple copies of data in separate systems to ensure it is always accessible
+
+There advantage are especially significant when dealing with big data and were made possible with the particular way HDFS handles data.
+
+How does HDFS store data?
+HDFS divides files into blocks and store each block on a DataNode. Multiple DataNode are linked to the master node in the cluster, the nameNode. The master node
+distribution replicas of these data blocks across the cluster. It also instructs the user where to locate wanted information. 
+
+However, before the NameNode can help you store and manage the data, it first needs to partition the file into smaller, manageable data blocks. This process is called data block 
+splittings.
+
+Data Block Splittings
+By default, a block node can be no more than 128 MB in size. The number of blocks depends on the initial size of the file. All but the last block are the same size, while the last
+one is what remains of the file. 
+
+For example, an 800MB file is broken up into seven data blocks. Six of the seven blocks are 128MB, while the seventh data block is the remaining 32 MB.
+Then, each block is replicated into several copies. 
+
+Data Replication
+Based on the cluster's configuration, the NameNode creates a number of copies of each data block using the replication method.
+
+It is recommended to have at least three replicas, which is also the default setting. The master node stores them onto separate DataNode of the Cluster. The state of nodes 
+is closely mentioned to ensure the data is always available. 
+
+To ensure high accessibility, reliability, and fault-tolerance, developers advice setting up the three replicas using the following topology. 
+- Store the first replica on the node where the client is located
+- Then, store the second replica on a different rack
+- Finally, store the third replica on the same rack as the second replica, but on different node
+
+
+HDFS architecture: NameNodes and DataNode
+HDFS has a master-slave architecture. The master node is the NameNode, which manages over the multiple slave nodes within the cluster, known as DataNodes.
+
+NameNodes
+Hadoop 2.X Introduced the possibility of having multiple NameNode per reck. This novelty was quite significant since having a single master node with all the information within
+the cluster posted a great vulnerability. 
+
+The usual cluster consist of two NameNode:
+- an active NameNode
+- and a stand-by NameNode
+
+While the first one deals with all client-operations within the cluster, the second one keeps in-sync with all its works if there is a need for failover. 
+The active NameNode keeps track of the metadata of each data block and its replicas. This includes the file name, permission, ID, Location, and number of replicas.
+It keeps all the information in a fsimage, a namespace image stored on the local memory of the files systems. Additionally, it maintains transaction logs called Editlogs, which 
+records all changes made on the system.
+
+The main purpose of the Standby NameNode is to solve the problem of the single point of failure. It reads any changes made to the EditLogs and applies it to its NameSpace
+(the file and the directory in the data). If the master node fails, the Zookeeper service carries out the failover allowing the standby by maintains an active session. 
+
+DataNodes
+DataNodes are slaves demons that stores data blocks assigned by the NameNode. As mentioned above, the default settings ensure each data block has three replicas. 
+You can change the number of replicas, however, it is not advisable to go under three. 
+
+The replicas should be distributed in accordance with Hadoop's Rack Awareness policy which notes that:
+- The number of replica has to be larger that the number of racks
+- One DataNode can store only one replica of a data block
+- One rack cannot store more than two replicas of a datablock
+
+By following these guidelines, you can
+- Maximize network bandwidth
+- Prefect against data loss
+- improve performance and reliability
+
+Key feature of HDFS
+These are the main characteristics of the hadoop Distributed File Systems:
+- Manages big data: HDFS is excellent in handling large datasets and provides a solution that traditional file 
+system could not. It does this by segregating the data into manageable blocks which allows fast processing times.
+- Rack-aware: It follows the guidelines of rack awareness which ensures a system is highly available and efficient.
+- Fault tolerant: As data is stored across multiple racks and nodes, it is replicated. This means that if any of the machines within
+a cluster fails, a replica of the data will be available from a different node. 
+- Scalable: You can scale resources according to the size of your file system. HDFS includes vertical and horizontal scalability mechanism.  
+
+------------------------------------------------------------------------------------------------------------------------------------------
+# Properties files
+    - /etc/hadoop/conf/core-site.xml
+    - /etc/hadoop/conf/hdfs-site.xml
+
+# Important Properties
+    - fs.defaultFS
+    - dfs.blocksize
+    - dfs.replication
+
+# HDFS commands
+    - Copying files
+        - From local files system (hadoop fs -copyFromLocal pr put)
+        - To local file system (hadoop fs - copyToLocal or get)
+        - From one HDFS Location to other (hadoop fs -cp)
+    - Listing files (hadoop fs -ls)
+    - previewing data from files (hadoop fs -tail or -cat)
+    - checking sizes of the files (hadoop fs - du)
+
+------------------------------------------------------------------------------------------
+Namenode: http://nn01.itversity.com:50070/
+
+cd /etc/hadoop/conf
+ls -ltr core core-site.xml hdfs-site.xml
+view core-site.xml ## important property: defualtFS (<value>hdfs://nn01.itversity.com:8020</value>) ==> To get the domain_name
+------------------------------------------------------------------------------------------------
+cd 
+hostname -f
+ls -ltr
+hadoop fs
+hadoop fs -ls /user/harishmohan
+
+-------------------
+# If this does not exist
+sudo -u hdfs hadoop fs -mkdir /user/root; sudo -u hdfs hadoop fs -chown -R root /user/root 
+-------------------
+
+ls -ltr /data/crime
+du -sh /data/crime
+hadoop fs
+
+# Copy Data from local to hadoop system: copyFromLocal and put
+hadoop -f -help copyFromlocal
+hadoop fs -copyFromLocal /data/crime /user/harishmohan/.
+hadoop fs -ls /user/harishmohan
+hadoop fs -ls -R /user/harishmohan
+hadoop fs -du -s -h /user/harishmohan/crime
+hdfs fsck /user/harishmohan/crime -files -blocks -locations
+
+hadoop fs -copyFromLocal /data/retail_db /user/harishmohan/.
+hadoop fs -ls /user/harishmohan/retail_db
+hadoop fs -ls -R /user/harishmohan/retail_db
+hadoop fs -du -s -h /user/harishmohan/retail_db
+hdfs fsck /user/harishmohan/retail_db -files -blocks -locations
