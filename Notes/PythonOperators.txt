@@ -88,3 +88,8 @@ scp /cygdrive/C/cygwin64/home/haris/SparkLearning/PythonOperators.txt harishmoha
 ssh harishmohan@gw02.itversity.com
 
 ------------------------------------------------------------------------------------------------
+# Environment
+
+export PYSPARK_PYTHON=python3.6.8
+pyspark2 --master yarn --conf spark.ui.port=12568
+

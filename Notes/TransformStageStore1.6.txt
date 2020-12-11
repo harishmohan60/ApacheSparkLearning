@@ -346,8 +346,13 @@ filter(lambda oi: int(oi.split(",")[1]) == 2)
 for i in orderItemsFiltered.take(10): print(i)
 
 orderItemsFiltered. \
-reduce(lambda x, y: )
+reduce(lambda x, y: x if (float(x.split(",")[4]) < float(x.split(",")[4])) else y)
+-----------------------------------------------------------------------------------------------------------------
+# Get Order Count by status- countByKey
 
-float(x.split(",")[4])
-x if(True) else y
+
+
+
+
+
 
