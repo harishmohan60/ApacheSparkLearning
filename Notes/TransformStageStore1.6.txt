@@ -347,8 +347,79 @@ for i in orderItemsFiltered.take(10): print(i)
 
 orderItemsFiltered. \
 reduce(lambda x, y: x if (float(x.split(",")[4]) < float(x.split(",")[4])) else y)
------------------------------------------------------------------------------------------------------------------
-# Get Order Count by status- countByKey
+-----------------------------------------------------------------------------------------------------
+# Get Order Count by status- countByKey 
+# hint: This converts RDD type to python class, so this must be the final stage in the transformation
+
+orders = sc.textFiles("/public/retail_db/orders")
+for i in orders.take(10): print(i)
+
+orderStatus = orders. \
+map(lambda o: (o.split(",")[3], 1))
+
+countByStatus = orderStatus.countByKey()
+---------------------------------------------------------------------------------------------
+# Aggregations- Understanding combiner- groupByKey
+1, (1 to 1000) - sum(1 to 1000) => 1+ 2+ 3+ ....1000
+1, (1 to 1000) - sum(1 to 250), sum(251, 500), sum(501, 750), sum(751, 1000)
+
+# Get revenue for each order_id - groupByKey
+orderItems = sc.textFile("/public/retail_db/order_items")
+orderItemsMap = orderItems. \
+map(lambda oi: (int(oi.split(",")[1]), float(oi.split(",")[4])))
+
+for i in orderItemsMap.take(10): print(i)
+
+orderItemsGroupByOderId = orderItemsMap.groupByKey()
+revenuePerOrderId = orderItemsGroupByOrderId. \
+map(lambda oi: (oi[0], round(sum(oi[1]))))
+
+for i in revenuePerOrder.take(10): print(i)
+------------------------------------------------------------------------------------------------
+# Get order item details in descending order by revenue - groupByKey
+orderItems = sc.textFile("/public/retail_db/order_items")
+
+for i in orderItems.take(10): print(i)
+
+orderItemsMap = orderItems. \
+map(lambda oi: (int(oi.split(",")[1]), oi))
+for i in orderItemsMap.take(10): print(i)
+
+orderItemsGroupByOrderId = orderItemsMap.groupByKey()
+for i in orderItemsGroupByOrderId.take(10): print(i)
+
+
+orderItemsSortedBySubtotalPerOrder = orderItemsGroupByOrderId. \
+flatMap(lambda oi: sorted(oi[1], key=lambda k: float(k.split(",")[4]), reverse=True))
+
+for i in orderItemsSortedBySubtotalPerOrder.take(10): print(i)
+
+orderItemsSortedBySubtotalPerOrder = orderItemsGroupByOrderId. \
+Map(lambda oi: sorted(oi[1], key=lambda k: float(k.split(",")[4]), reverse=False))
+
+for i in orderItemsSortedBySubtotalPerOrder.take(10): print(i)
+
+#########################################
+### Map is one to one Operation       ###
+### FlatMap is one to many operation  ###
+#########################################
+---------------------------------------------------------------------------------------------
+# Aggregations- reduceByKey- Get Revenue for each order id
+
+orderItems = sc.textFile("/public/retail_db/order_items")
+orderItemsMap = orderItems. \
+map(lambda oi: (int(oi.split(",")[1]), float(oi.split(",")[4])))
+
+revenuePerOrderId = orderItemsMap. \
+reduceByKey(lambda x, y: x + y)
+
+from operator import add
+revenuePerOrderId = orderItemsMap. \
+reduceByKey(add)
+
+# Aggregations- reduceByKey- Get Min Revenue for each order id
+minSubtotalPerOrderId = orderItemsMap. \
+reduceByKey(lambda x, y: x if(x < y) else y)
 
 
 
