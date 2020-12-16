@@ -1,0 +1,393 @@
+# Apache Spark- Core API
+# Get Daily Revenue Per Product
+
+- Use retail_db data set
+- Problem statement
+    - Get daily revenue by product considering completed and closed orders. 
+    - Data need to be sorted by ascending order by date and then descending order
+        by revenue computed for each product for each day
+    - Data should be delimited by "," in this order - 
+        order_date, daily_revenue_per_product, product_name
+
+- Data for orders and order_items is available in HDFS
+    /public/retail_db/orders and /public/retail_db/order_items
+
+- Data for products is available locally under /data/retail_db/products
+- Final output need to be stored under
+    - HDFS location - avro format
+        /user/harishmohan/daily_revenue_arvo_python
+    - HDFS location -text format
+        /user/harishmohan/daily_revenue_txt_python
+    - Local location /home/harishmohan/daily_revenue_python
+    - Solution need to be stored under
+        /home/harishmohan/daily_revenue_python.txt
+-------------------------------------------------------------------------------------
+# Solution Workflow
+
+- Launch Spark Shell - Understand the environment and use resource optimally
+- Read orders and order_items
+- Filter for completed or closed orders
+- Convert both filtered orders and order_items to key value pairs
+- Join the two data sets
+- Get daily revenue per product id
+- Load daily revenue per product id with products to get daily revenue per product (by name)
+- Sort the data by date in ascending order and by daily revenue per product in descending order
+- Get data to desired format - 
+    order_date, daily_revenue_per_product, product_name
+- Save final output into HDFS in avro file format as well as text file format
+    - HDFS location - avro format /user/harishmohan/daily_revenue_avro_python
+    - HDFS location - text format /user/harishmohan/daily_revenue_txt_python
+- Copy both from HDFS to local file system
+    - /home/harishmohan/daily_revenue_python
+
+------------------------------------------------------------------------------------------
+Resource manager URL
+cd /etc/hadoop/conf
+vi yarn-site.xml /resourcemanager.webapp.address
+# Main metrics to compute the cluster capacity: Memory Total and VCore Total
+# Sizing the execution based on the data volume
+
+du /data/retail_db/products
+du -s -h /data/retail_db/products
+
+hadoop fs -du -s -h /public/retail_db/orders  # 2.9MB
+hadoop fs -du -s -h /public/retail_db/order_items # 5.2MB
+
+# Due to the size of the data we only need 2 or 3 tasks
+# hint: If the processing takes too long during the exam, try using 2 task for each node
+#       If you get 10 node cluster use 20 task, etc... 
+#       You need to aware of number of cluster- user the resource manager
+#       In this case: Memory = 120 GB, VCores = 60, nodes = 5 => max task/executors => 10
+
+export PYSPARK_PYTHON=python3.6
+pyspark2 --master yarn \
+    --conf spark.ui.port=12569 \
+    --num-executors 10 \
+    --executor-memory 2G
+
+# Import orders table and count rows
+orders = sc.textFile("/public/retail_db/orders")
+for i in orders.take(10): print(i)
+
+orders.count()
+
+# Import orderItems table and count rows
+orderItems = sc.textFile("/public/retail_db/order_items")
+for i in orderItems.take(10): print(i)
+
+orders.count()
+
+# Distinct status column from orders table
+for i in orders. \
+map(lambda o: o.split(",")[3]). \
+distinct().\
+collect():
+    print(i)
+
+
+# Orders table filtered by status = completed / closed and count rows
+ordersFiltered = orders. \
+filter(lambda o: o.split(",")[3] in ["COMPLETE", "CLOSED"])
+for i in ordersFiltered.take(10): print(i)
+
+ordersFiltered.count()
+
+# Orders map to create tuple kind pairs
+ordersMap = ordersFiltered. \
+map(lambda o: (int(o.split(",")[0]), o.split(",")[1]))
+
+for i in ordersMap.take(10): print(i)
+
+# OrderItems map to create tuple kind pairs
+orderItemsMap = orderItems. \
+map(lambda oi: (int(oi.split(",")[1]), (int(oi.split(",")[2]), float(oi.split(",")[4]))))
+
+for i in orderItemsMap.take(10): print(i)
+
+# Join orders.orderId and orderItems.orderId
+ordersJoin = ordersMap.join(orderItemsMap)
+
+for i in ordersJoin.take(10): print(i)
+
+# Aggregate to get daily revenue per product id 
+ordersJoinMap = ordersJoin. \
+map(lambda o: ((o[1][0], o[1][1][0]), o[1][1][1]))
+
+from operator import add
+dailyRevenuePerProductId = ordersJoinMap.reduceByKey(add)
+for i in dailyRevenuePerProductId.take(10): print(i)
+
+# Import product information data
+productsRaw = open("/data/retail_db/products/part-00000"). \
+read(). \
+splitlines()
+products = sc.parallelize(productsRaw)
+productsMap = products. \
+map(lambda p: (int(p.split(",")[0]), p.split(",")[2]))
+
+# DailyRevenuePerProductMap to recreate kind pairs, key being the productId
+dailyRevenuePerProductIdMap = dailyRevenuePerProductId. \
+map(lambda r: (r[0][1], (r[0][0], r[1])))
+
+for i in dailyRevenuePerProductIdMap.take(10): print(i)
+
+# Merge dailyRevenuePerProductMap and Product information
+dailyRevenuePerProductsJoin = dailyRevenuePerProductIdMap.join(productsMap)
+
+for i in dailyRevenuePerProductsJoin.take(10): print(i)
+
+dailyRevenuePerProduct = dailyRevenuePerProductsJoin. \
+map(lambda t: ((t[1][0][0], -t[1][0][1]), t[1][0][0] + "," + str(t[1][0][1]) + "," + t[1][1]))
+
+dailyRevenuePerProductSorted = dailyRevenuePerProduct.sortByKey()
+
+dailyRevenuePerProductName = dailyRevenuePerProductSorted. \
+map(lambda r: r[1])
+
+# Save as text file in HDFS in the following path
+dailyRevenuePerProductName.saveAsTextFile("/user/harishmohan/daily_revenue_txt_python")
+
+# Checking the save text file
+for i in sc.textFile("/user/harishmohan/daily_revenue_txt_python").take(10): print(i)
+
+# Checking in the console [hadoop]
+hadoop fs -ls /user/harishmohan/daily_revenue_txt_python
+hadoop fs - tail /user/harishmohan/daily_revenue_txt_python/part-00000
+
+------------------------------------------------------------------------------------------------------------------------------
+# Save as avro file in HDFS in the following path- Relaunch pySpark
+export PYSPARK_PYTHON=python3.6
+pyspark2 --master yarn \
+    --conf spark.ui.port=12569 \
+    --num-executors 10 \
+    --executor-memory 2G \
+    --packages com.databricks:spark-avro_2.10:2.0.1
+    (or if you get a jar file location)
+    --jars <PATH_TO_JAR>
+
+# Import orders table and count rows
+orders = sc.textFile("/public/retail_db/orders")
+for i in orders.take(10): print(i)
+
+orders.count()
+
+# Import orderItems table and count rows
+orderItems = sc.textFile("/public/retail_db/order_items")
+for i in orderItems.take(10): print(i)
+
+orders.count()
+
+# Distinct status column from orders table
+for i in orders. \
+map(lambda o: o.split(",")[3]). \
+distinct().\
+collect():
+    print(i)
+
+# Orders table filtered by status = completed / closed and count rows
+ordersFiltered = orders. \
+filter(lambda o: o.split(",")[3] in ["COMPLETE", "CLOSED"])
+for i in ordersFiltered.take(10): print(i)
+
+ordersFiltered.count()
+
+# Orders map to create tuple kind pairs
+ordersMap = ordersFiltered. \
+map(lambda o: (int(o.split(",")[0]), o.split(",")[1]))
+
+for i in ordersMap.take(10): print(i)
+
+# OrderItems map to create tuple kind pairs
+orderItemsMap = orderItems. \
+map(lambda oi: (int(oi.split(",")[1]), (int(oi.split(",")[2]), float(oi.split(",")[4]))))
+
+for i in orderItemsMap.take(10): print(i)
+
+# Join orders.orderId and orderItems.orderId
+ordersJoin = ordersMap.join(orderItemsMap)
+
+for i in ordersJoin.take(10): print(i)
+
+# Aggregate to get daily revenue per product id 
+ordersJoinMap = ordersJoin. \
+map(lambda o: ((o[1][0], o[1][1][0]), o[1][1][1]))
+
+from operator import add
+dailyRevenuePerProductId = ordersJoinMap.reduceByKey(add)
+for i in dailyRevenuePerProductId.take(10): print(i)
+
+# Import product information data
+productsRaw = open("/data/retail_db/products/part-00000"). \
+read(). \
+splitlines()
+products = sc.parallelize(productsRaw)
+productsMap = products. \
+map(lambda p: (int(p.split(",")[0]), p.split(",")[2]))
+
+# DailyRevenuePerProductMap to recreate kind pairs, key being the productId
+dailyRevenuePerProductIdMap = dailyRevenuePerProductId. \
+map(lambda r: (r[0][1], (r[0][0], r[1])))
+
+for i in dailyRevenuePerProductIdMap.take(10): print(i)
+
+# Merge dailyRevenuePerProductMap and Product information
+dailyRevenuePerProductsJoin = dailyRevenuePerProductIdMap.join(productsMap)
+
+for i in dailyRevenuePerProductsJoin.take(10): print(i)
+
+dailyRevenuePerProduct = dailyRevenuePerProductsJoin. \
+map(lambda t: 
+    ((t[1][0][0], -t[1][0][1]), (t[1][0][0], round(t[1][0][1], 2), t[1][1])))
+
+dailyRevenuePerProductSorted = dailyRevenuePerProduct.sortByKey()
+dailyRevenuePerProductName = dailyRevenuePerProductSorted. \
+map(lambda r: r[1])
+
+# Convent RDD to DataFrame
+dailyRevenuePerProductNameDF = dailyRevenuePerProductName. \
+toDF(schema= ["order_date", "revenue_per_product", "product_name"])
+dailyRevenuePerProductNameDF.show()
+
+# Save the dailyRevenuePerProductName in avro file
+dailyRevenuePerProductNameDF. \
+save("/user/harishmohan/daily_revenue_avro_python", "com.databricks.spark.avro")
+
+# check by loading dailyRevenuePerProductsNameDF
+sqlContext.load("/user/harishmohan/daily_revenue_avro_python", "com.databricks.spark.avro").show()
+---------------------------------------------------------------------------------------------------------------------
+
+# Get data to local file system using get or copyToLocal
+mkdir -p /home/harishmohan/daily_revenue_python
+cd daily_revenue_python/ 
+hadoop fs -help get
+## hadoop fs -copyToLocal (or) hadoop fs -get 
+hadoop fs -get /user/harishmohan/daily_revenue_txt_python .
+ls -ltr
+ls -ltr daily_revenue_txt_python/
+--------------------------------------------------------------------------------------------------
+# Develop as application to get daily revenue per product
+
+mkdir pythondemo
+cd pythondemo
+mkdir retail
+cd retail/ 
+mkdir -p src/main/python
+cd src/main/python
+vi DailyRevenuePerProduct.py
+
+# Run an application on the cluster
+- This need not be relevant for the certification- but must to know
+- Create directory for the application
+- Create src/main/python
+- Create program file with py extension
+- Ship the code to he cluster
+- Run on the cluster using spark-submit
+-----------------------------------------------------
+from pyspark import SparkConf, SparkContext
+
+conf = SparkConf(). \
+setAppName("Daily Revenue Per Product").\
+setMaster("yarn-client")
+
+# Import orders table and count rows
+orders = sc.textFile("/public/retail_db/orders")
+for i in orders.take(10): print(i)
+
+orders.count()
+
+# Import orderItems table and count rows
+orderItems = sc.textFile("/public/retail_db/order_items")
+for i in orderItems.take(10): print(i)
+
+orders.count()
+
+# Distinct status column from orders table
+for i in orders. \
+map(lambda o: o.split(",")[3]). \
+distinct().\
+collect():
+    print(i)
+
+
+# Orders table filtered by status = completed / closed and count rows
+ordersFiltered = orders. \
+filter(lambda o: o.split(",")[3] in ["COMPLETE", "CLOSED"])
+for i in ordersFiltered.take(10): print(i)
+
+ordersFiltered.count()
+
+# Orders map to create tuple kind pairs
+ordersMap = ordersFiltered. \
+map(lambda o: (int(o.split(",")[0]), o.split(",")[1]))
+
+for i in ordersMap.take(10): print(i)
+
+# OrderItems map to create tuple kind pairs
+orderItemsMap = orderItems. \
+map(lambda oi: (int(oi.split(",")[1]), (int(oi.split(",")[2]), float(oi.split(",")[4]))))
+
+for i in orderItemsMap.take(10): print(i)
+
+# Join orders.orderId and orderItems.orderId
+ordersJoin = ordersMap.join(orderItemsMap)
+
+for i in ordersJoin.take(10): print(i)
+
+# Aggregate to get daily revenue per product id 
+ordersJoinMap = ordersJoin. \
+map(lambda o: ((o[1][0], o[1][1][0]), o[1][1][1]))
+
+from operator import add
+dailyRevenuePerProductId = ordersJoinMap.reduceByKey(add)
+for i in dailyRevenuePerProductId.take(10): print(i)
+
+# Import product information data
+productsRaw = open("/data/retail_db/products/part-00000"). \
+read(). \
+splitlines()
+products = sc.parallelize(productsRaw)
+productsMap = products. \
+map(lambda p: (int(p.split(",")[0]), p.split(",")[2]))
+
+# DailyRevenuePerProductMap to recreate kind pairs, key being the productId
+dailyRevenuePerProductIdMap = dailyRevenuePerProductId. \
+map(lambda r: (r[0][1], (r[0][0], r[1])))
+
+for i in dailyRevenuePerProductIdMap.take(10): print(i)
+
+# Merge dailyRevenuePerProductMap and Product information
+dailyRevenuePerProductsJoin = dailyRevenuePerProductIdMap.join(productsMap)
+
+for i in dailyRevenuePerProductsJoin.take(10): print(i)
+
+dailyRevenuePerProduct = dailyRevenuePerProductsJoin. \
+map(lambda t: ((t[1][0][0], -t[1][0][1]), t[1][0][0] + "," + str(t[1][0][1]) + "," + t[1][1]))
+
+dailyRevenuePerProductSorted = dailyRevenuePerProduct.sortByKey()
+
+dailyRevenuePerProductName = dailyRevenuePerProductSorted. \
+map(lambda r: r[1])
+
+# Save as text file in HDFS in the following path
+dailyRevenuePerProductName.saveAsTextFile("/user/harishmohan/daily_revenue_txt_python")
+
+--------------------------------------------------------------------------------------------------
+cd 
+cd pythondemo
+ls -ltr
+cd retail
+spark-submit \
+--master yarn \
+--conf spark.ui.port=12789 \
+--num-executors 2 \
+--executor-memory 512M \ 
+src/main/python/DailyRevenuePerProduct.py 
+
+
+
+
+
+
+
+
+
