@@ -92,3 +92,10 @@ ssh harishmohan@gw02.itversity.com
 
 export PYSPARK_PYTHON=python3.6
 pyspark2 --master yarn --conf spark.ui.port=12568
+
+/home/harishmohan/ApacheSparkLearning
+
+
+
+-Example
+scp -r /cygdrive/C/cygwin64/home/haris/Datasets harishmohan@gw02.itversity.com:/home/harishmohan/Datasets/
